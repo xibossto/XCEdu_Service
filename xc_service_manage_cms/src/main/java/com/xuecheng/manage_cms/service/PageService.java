@@ -26,58 +26,59 @@ import java.util.Optional;
 public class PageService {
 
     @Autowired
-    CmsPageRepository cmsPageRepository ;
+    CmsPageRepository cmsPageRepository;
 
     /**
      * 页面列表分页查询
-     * @param page 当前页码,从1开始计数
-     * @param size  页面显示个数
+     *
+     * @param page             当前页码,从1开始计数
+     * @param size             页面显示个数
      * @param queryPageRequest 查询条件
      * @return 页面列表
      */
-    public QueryResponseResult findList(int page, int size, QueryPageRequest queryPageRequest){
-        if(queryPageRequest == null){
-            queryPageRequest = new QueryPageRequest() ;
+    public QueryResponseResult findList(int page, int size, QueryPageRequest queryPageRequest) {
+        if (queryPageRequest == null) {
+            queryPageRequest = new QueryPageRequest();
         }
 
         //自定义条件查询
         //定义条件匹配器
         ExampleMatcher exampleMatcher = ExampleMatcher.matching()
-                .withMatcher("pageAliase",ExampleMatcher.GenericPropertyMatchers.contains()) ;
+                .withMatcher("pageAliase", ExampleMatcher.GenericPropertyMatchers.contains());
         //条件值对象
-        CmsPage cmsPage = new CmsPage() ;
+        CmsPage cmsPage = new CmsPage();
         //设置站点id为查询条件
-        if(StringUtils.isNotEmpty(queryPageRequest.getSiteId())){
+        if (StringUtils.isNotEmpty(queryPageRequest.getSiteId())) {
             cmsPage.setSiteId(queryPageRequest.getSiteId());
         }
         //设置模板id为查询条件
-        if(StringUtils.isNotEmpty(queryPageRequest.getTemplateId())){
+        if (StringUtils.isNotEmpty(queryPageRequest.getTemplateId())) {
             cmsPage.setTemplateId(queryPageRequest.getTemplateId());
         }
         //设置模页面别名为查询条件
-        if(StringUtils.isNotEmpty(queryPageRequest.getPageAliase())){
+        if (StringUtils.isNotEmpty(queryPageRequest.getPageAliase())) {
             cmsPage.setPageAliase(queryPageRequest.getPageAliase());
         }
         //定义Example条件对象
-        Example<CmsPage> example = Example.of(cmsPage,exampleMatcher) ;
+        Example<CmsPage> example = Example.of(cmsPage, exampleMatcher);
 
-        if(page <= 0){
-            page = 1 ;
+        if (page <= 0) {
+            page = 1;
         }
-        page -= 1 ;             //适应MongoDB的接口将页码减1
-        if(size <= 0){
-            size = 10 ;
+        page -= 1;             //适应MongoDB的接口将页码减1
+        if (size <= 0) {
+            size = 10;
         }
         //分页对象
-        Pageable pageable = PageRequest.of(page,size) ;
+        Pageable pageable = PageRequest.of(page, size);
         //分页查询
-        Page<CmsPage> all = cmsPageRepository.findAll(example,pageable);    //自定义条件查询并分页
+        Page<CmsPage> all = cmsPageRepository.findAll(example, pageable);    //自定义条件查询并分页
         //查询结果汇总
-        QueryResult queryResult = new QueryResult() ;
+        QueryResult queryResult = new QueryResult();
         queryResult.setList(all.getContent());          //数据列表
         queryResult.setTotal(all.getTotalElements());   //数据总记录数
-        QueryResponseResult queryResponseResult = new QueryResponseResult(CommonCode.SUCCESS, queryResult) ;
-        return queryResponseResult ;
+        QueryResponseResult queryResponseResult = new QueryResponseResult(CommonCode.SUCCESS, queryResult);
+        return queryResponseResult;
     }
 
     //新增页面
@@ -85,35 +86,33 @@ public class PageService {
         //校验页面名称、站点id、页面webpath的唯一性
         CmsPage cmsPage1 = cmsPageRepository.findByPageNameAndSiteIdAndPageWebPath(
                 cmsPage.getPageName(), cmsPage.getSiteId(), cmsPage.getPageWebPath());
-        if(cmsPage1 != null){
+        if (cmsPage1 != null) {
             //页面存在抛出异常
             ExceptionCast.cast(CmsCode.CMS_ADDPAGE_EXISTSNAME);
+            //添加失败
+            return new CmsPageResult(CmsCode.CMS_ADDPAGE_EXISTSNAME, null);
         }
-        if(cmsPage1 == null){
-            cmsPage.setPageId(null);    //设置为空，让MongoDB自动生成
-            //调用dao新增页面
-            cmsPageRepository.save(cmsPage) ;
-            return new CmsPageResult(CommonCode.SUCCESS,cmsPage) ;
-        }
-        //添加失败
-        return new CmsPageResult(CommonCode.FAIL,null) ;
+        cmsPage.setPageId(null);    //设置为空，让MongoDB自动生成
+        //调用dao新增页面
+        cmsPageRepository.save(cmsPage);
+        return new CmsPageResult(CommonCode.SUCCESS, cmsPage);
     }
 
     //根据页面id查询页面
-    public CmsPage findById(String id){
+    public CmsPage findById(String id) {
         Optional<CmsPage> optional = cmsPageRepository.findById(id);
-        if(optional.isPresent()){       //不为空,执行
+        if (optional.isPresent()) {       //不为空,执行
             CmsPage cmsPage = optional.get();
-            return cmsPage ;
+            return cmsPage;
         }
-        return null ;
+        return null;
     }
 
     //修改页面
-    public CmsPageResult editPage(String id, CmsPage cmsPage){
+    public CmsPageResult editPage(String id, CmsPage cmsPage) {
         //根据页面id从数据库查询页面信息
         CmsPage cmsPage1 = findById(id);
-        if(cmsPage1 != null){
+        if (cmsPage1 != null) {
             //设置要修改的数据
             //更新模板id
             cmsPage1.setTemplateId(cmsPage.getTemplateId());
@@ -127,29 +126,31 @@ public class PageService {
             cmsPage1.setPageWebPath(cmsPage.getPageWebPath());
             //更新物理路径
             cmsPage1.setPagePhysicalPath(cmsPage.getPagePhysicalPath());
+            //更新数据路径
+            cmsPage1.setDataUrl(cmsPage.getDataUrl());
 
             //执行更新
             CmsPage save = cmsPageRepository.save(cmsPage1);
-            if(save != null){
+            if (save != null) {
                 //返回成功
-                CmsPageResult cmsPageResult = new CmsPageResult(CommonCode.SUCCESS,save) ;
-                return cmsPageResult ;
+                CmsPageResult cmsPageResult = new CmsPageResult(CommonCode.SUCCESS, save);
+                return cmsPageResult;
             }
         }
         //修改失败，数据不存在
-        return new CmsPageResult(CommonCode.FAIL,null) ;
+        return new CmsPageResult(CommonCode.FAIL, null);
     }
 
     //删除页面
-    public ResponseResult delete(String id){
+    public ResponseResult delete(String id) {
         CmsPage cmsPage = findById(id);
-        if(cmsPage != null){
+        if (cmsPage != null) {
             //删除页面
             cmsPageRepository.deleteById(id);
-            return new ResponseResult(CommonCode.SUCCESS) ;
+            return new ResponseResult(CommonCode.SUCCESS);
         }
         //删除失败
-        return new ResponseResult(CommonCode.FAIL) ;
+        return new ResponseResult(CommonCode.FAIL);
     }
 
 }
